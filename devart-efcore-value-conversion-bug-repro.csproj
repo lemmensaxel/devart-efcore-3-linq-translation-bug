@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.2</TargetFramework>
     <RootNamespace>devart_efcore_value_conversion_bug_repro</RootNamespace>
+    <LangVersion>7.1</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.6.675" />
+    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.6.694" />
     <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5031" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.2.0" />
   </ItemGroup>
