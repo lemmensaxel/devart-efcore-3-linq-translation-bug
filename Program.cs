@@ -56,7 +56,7 @@ CREATE TABLE RIDER
                 {
                     // The following code generates an invalid query: ORA-01722: invalid number
                     var rider = context.Set<Rider>()
-                        .FirstOrDefault(_ => _.Mount != null
+                        .FirstOrDefault(_ => _.Mount.HasValue
                                              && _.Mount.Value == EquineBeast.Mule);
                 }
 
