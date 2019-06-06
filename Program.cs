@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,16 +7,9 @@ using Devart.Data.Oracle;
 using HibernatingRhinos.Profiler.Appender.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using SESVdh.Data.Ado;
 
 namespace devart_efcore_value_conversion_bug_repro
 {
-    public class MyContext : Context
-    {
-        public MyContext(string connectionString) : base(connectionString)
-        {
-        }
-    }
 
     public class Program
     {
@@ -39,7 +31,7 @@ namespace devart_efcore_value_conversion_bug_repro
 
                 using (var scope = new TransactionScope(
                     TransactionScopeOption.Required,
-                    new TransactionOptions {IsolationLevel = IsolationLevel.ReadCommitted},
+                    new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted },
                     TransactionScopeAsyncFlowOption.Enabled))
                 {
                     using (var context = new EntityContext())
@@ -49,25 +41,11 @@ namespace devart_efcore_value_conversion_bug_repro
 CREATE TABLE RIDER
 (
     ID          NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
-    MOUNT       VARCHAR2 (100 CHAR) NOT NULL,
-    COMMENT2    CLOB
-)");
-
-                        context.Database.ExecuteSqlCommand(@"
-CREATE TABLE SWORD
-(
-    ID              NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
-    RIDER_ID        NUMBER (19, 0) NOT NULL,
-    SWORD_TYPE      VARCHAR2 (100 CHAR) NOT NULL
+    MOUNT       VARCHAR2 (100 CHAR)
 )");
 
                         var rider = new Rider(EquineBeast.Mule);
-                        rider.Comment = string.Join("", Enumerable.Range(1, 5000).Select(_ => "a"));
                         context.Add(rider);
-                        await context.SaveChangesAsync();
-
-                        rider.PickUpSword(new Sword(SwordType.Katana));
-                        rider.PickUpSword(new Sword(SwordType.Longsword));
                         await context.SaveChangesAsync();
                     }
 
@@ -76,12 +54,10 @@ CREATE TABLE SWORD
 
                 using (var context = new EntityContext())
                 {
-                    var parameter = EquineBeast.Mule;
+                    // The following code generates an invalid query: ORA-01722: invalid number
                     var rider = context.Set<Rider>()
-                        .Where(_ => _.Mount == parameter &&
-                                    _.Swords.Any(sword => sword.SwordType == SwordType.Longsword))
-                        .Include(_ => _.Swords).FirstOrDefault();
-                    //var rider = context.Set<Rider>().Where(_ => _.Mount == EquineBeast.Mule).FirstOrDefault();
+                        .FirstOrDefault(_ => _.Mount != null
+                                             && _.Mount.Value == EquineBeast.Mule);
                 }
 
                 Console.WriteLine("Finished.");
@@ -115,7 +91,7 @@ CREATE TABLE SWORD
     {
         public static string ConnectionString;
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) => 
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
             optionsBuilder.UseOracle(ConnectionString);
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -125,56 +101,22 @@ CREATE TABLE SWORD
             modelBuilder.Entity<Rider>().Property(_ => _.Id).HasColumnName("ID");
             modelBuilder.Entity<Rider>().Property(_ => _.Mount).HasConversion<string>();
             modelBuilder.Entity<Rider>().Property(_ => _.Mount).HasColumnName("MOUNT");
-            modelBuilder.Entity<Rider>().Property(_ => _.Comment).HasColumnName("COMMENT2");//.HasMaxLength(11000);
-            modelBuilder.Entity<Rider>().HasMany(_ => _.Swords).WithOne();
-            modelBuilder.Entity<Rider>().Metadata.FindNavigation($"{nameof(Rider.Swords)}").SetPropertyAccessMode(PropertyAccessMode.Field);
-
-            modelBuilder.Entity<Sword>().ToTable("SWORD");
-            modelBuilder.Entity<Sword>().HasKey(_ => _.Id);
-            modelBuilder.Entity<Sword>().Property(_ => _.Id).HasColumnName("ID");
-            modelBuilder.Entity<Sword>().Property(_ => _.SwordType).HasColumnName("SWORD_TYPE");
-            modelBuilder.Entity<Sword>().Property("RiderId").HasColumnName("RIDER_ID");
-            modelBuilder.Entity<Sword>().Property(_ => _.SwordType).HasConversion<string>();   
         }
     }
 
     public class Rider
     {
         public int Id { get; private set; }
-        public EquineBeast Mount { get; private set; }
-        public string Comment { get; set; }
-        private readonly List<Sword> _swords = new List<Sword>();
-        public IReadOnlyList<Sword> Swords => _swords.AsReadOnly();
+        public EquineBeast? Mount { get; private set; }
 
         private Rider()
         {
             // Required by EF Core
         }
 
-        public Rider(EquineBeast mount)
+        public Rider(EquineBeast? mount)
         {
             Mount = mount;
-        }
-
-        public void PickUpSword(Sword sword)
-        {
-            _swords.Add(sword);
-        }
-    }
-
-    public class Sword
-    {
-        public int Id { get; private set; }
-        public SwordType SwordType { get; private set;}
-
-        private Sword()
-        {
-            // Required by EF Core
-        }
-
-        public Sword(SwordType type)
-        {
-            SwordType = type;
         }
     }
 
@@ -184,12 +126,5 @@ CREATE TABLE SWORD
         Mule,
         Horse,
         Unicorn
-    }
-
-    public enum SwordType
-    {
-        Katana,
-        Longsword,
-        Falx
     }
 }

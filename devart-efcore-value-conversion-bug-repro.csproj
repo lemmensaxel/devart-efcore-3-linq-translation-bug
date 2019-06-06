@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.6.694" />
+    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.7.734" />
     <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5031" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.2.0" />
   </ItemGroup>
