@@ -54,10 +54,19 @@ CREATE TABLE RIDER
 
                 using (var context = new EntityContext())
                 {
-                    // The following code generates an invalid query: ORA-01722: invalid number
-                    var rider = context.Set<Rider>()
-                        .FirstOrDefault(_ => _.Mount.HasValue
-                                             && _.Mount.Value == EquineBeast.Mule);
+                    // This works
+                    var unicornRider = context.Set<Rider>()
+                        .FirstOrDefault(_ => _.Mount.Value == EquineBeast.Unicorn);
+
+                    // This works
+                    var beastsWithHorns = new EquineBeast?[] { EquineBeast.Unicorn };
+                    var hornRider = context.Set<Rider>()
+                        .FirstOrDefault(_ => beastsWithHorns.Contains(_.Mount));
+
+                    // This doesn't - throws ORA-01722: invalid number exception
+                    var beastsWithoutHorns = new[] { EquineBeast.Donkey, EquineBeast.Horse, EquineBeast.Mule };
+                    var noHornRider = context.Set<Rider>()
+                        .FirstOrDefault(_ => beastsWithoutHorns.Contains(_.Mount.Value));
                 }
 
                 Console.WriteLine("Finished.");
