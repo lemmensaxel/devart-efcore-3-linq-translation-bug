@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.168
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29326.143
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "devart-efcore-value-conversion-bug-repro", "devart-efcore-value-conversion-bug-repro.csproj", "{AC0184B8-822E-4593-9253-47FEB5E8C9AD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "devart-efcore-owned-type-bug-repro", "devart-efcore-owned-type-bug-repro.csproj", "{EB196511-2C0D-4B69-A5E2-11EE2630B77E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{AC0184B8-822E-4593-9253-47FEB5E8C9AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AC0184B8-822E-4593-9253-47FEB5E8C9AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AC0184B8-822E-4593-9253-47FEB5E8C9AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AC0184B8-822E-4593-9253-47FEB5E8C9AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB196511-2C0D-4B69-A5E2-11EE2630B77E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB196511-2C0D-4B69-A5E2-11EE2630B77E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB196511-2C0D-4B69-A5E2-11EE2630B77E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB196511-2C0D-4B69-A5E2-11EE2630B77E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

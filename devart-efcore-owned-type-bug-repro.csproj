@@ -3,8 +3,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.2</TargetFramework>
-    <RootNamespace>devart_efcore_value_conversion_bug_repro</RootNamespace>
+    <RootNamespace>devart_efcore_owned_type_bug_repro</RootNamespace>
     <LangVersion>7.1</LangVersion>
+    <AssemblyName>devart-efcore-owned-type-bug-repro</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,8 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.7.805" />
-    <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5036" />
+    <PackageReference Include="CSharpFunctionalExtensions" Version="2.1.1" />
+    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.8.838" />
+    <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5038" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="2.2.6" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.2.0" />
   </ItemGroup>
 

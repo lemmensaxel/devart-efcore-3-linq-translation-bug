@@ -1,16 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Transactions;
+using CSharpFunctionalExtensions;
 using Devart.Data.Oracle;
 using HibernatingRhinos.Profiler.Appender.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
-namespace devart_efcore_value_conversion_bug_repro
+namespace devart_efcore_owned_type_bug_repro
 {
-
     public class Program
     {
         static async Task Main(string[] args)
@@ -41,11 +42,27 @@ namespace devart_efcore_value_conversion_bug_repro
 CREATE TABLE RIDER
 (
     ID          NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
-    MOUNT       VARCHAR2 (100 CHAR)
+    BEAST_NAME VARCHAR2 (50 CHAR) NOT NULL,
+    BEAST_TYPE VARCHAR2 (50 CHAR) NOT NULL,
+    DISCRIMINATOR VARCHAR2 (50 CHAR) NOT NULL
 )");
 
-                        var rider = new Rider(EquineBeast.Mule);
+                        context.Database.ExecuteSqlCommand(@"
+CREATE TABLE OTHER_RIDER
+(
+    ID          NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+    BEAST_NAME VARCHAR2 (50 CHAR) NOT NULL,
+    BEAST_TYPE VARCHAR2 (50 CHAR) NOT NULL
+)");
+
+                        var beast = new Beast("Drogo", EquineBeast.Horse);
+                        var rider = new BeastRider( beast);
                         context.Add(rider);
+
+                        var otherBeast = new Beast("Viscerion", EquineBeast.Donkey);
+                        var otherRider = new OtherBeastRider(otherBeast);
+                        context.Add(otherRider);
+
                         await context.SaveChangesAsync();
                     }
 
@@ -54,19 +71,13 @@ CREATE TABLE RIDER
 
                 using (var context = new EntityContext())
                 {
-                    // This works
-                    var unicornRider = context.Set<Rider>()
-                        .FirstOrDefault(_ => _.Mount.Value == EquineBeast.Unicorn);
+                    // Works as expected, clean SQL
+                    var otherRider = context.Set<OtherBeastRider>()
+                        .FirstOrDefault();
 
-                    // This works
-                    var beastsWithHorns = new EquineBeast?[] { EquineBeast.Unicorn };
-                    var hornRider = context.Set<Rider>()
-                        .FirstOrDefault(_ => beastsWithHorns.Contains(_.Mount));
-
-                    // This doesn't - throws ORA-01722: invalid number exception
-                    var beastsWithoutHorns = new[] { EquineBeast.Donkey, EquineBeast.Horse, EquineBeast.Mule };
-                    var noHornRider = context.Set<Rider>()
-                        .FirstOrDefault(_ => beastsWithoutHorns.Contains(_.Mount.Value));
+                    // Works, but generates unnecessary left join in SQL
+                    var rider = context.Set<BeastRider>()
+                        .FirstOrDefault();
                 }
 
                 Console.WriteLine("Finished.");
@@ -108,24 +119,90 @@ CREATE TABLE RIDER
             modelBuilder.Entity<Rider>().ToTable("RIDER");
             modelBuilder.Entity<Rider>().HasKey(_ => _.Id);
             modelBuilder.Entity<Rider>().Property(_ => _.Id).HasColumnName("ID");
-            modelBuilder.Entity<Rider>().Property(_ => _.Mount).HasConversion<string>();
-            modelBuilder.Entity<Rider>().Property(_ => _.Mount).HasColumnName("MOUNT");
+            modelBuilder.Entity<Rider>().HasDiscriminator<string>("DISCRIMINATOR")
+                .HasValue<BeastRider>("BeastRider");
+
+            modelBuilder.Entity<BeastRider>().OwnsOne(
+                o => o.Beast,
+                sa =>
+                {
+                    sa.Property<long>("Id").HasColumnName("ID");
+                    sa.Property(p => p.Name).HasColumnName("BEAST_NAME");
+                    sa.Property(p => p.Type).HasColumnName("BEAST_TYPE").HasConversion<string>();
+                });
+
+            modelBuilder.Entity<OtherBeastRider>().ToTable("OTHER_RIDER");
+            modelBuilder.Entity<OtherBeastRider>().HasKey(_ => _.Id);
+            modelBuilder.Entity<OtherBeastRider>().Property(_ => _.Id).HasColumnName("ID");
+            modelBuilder.Entity<OtherBeastRider>().OwnsOne(
+                o => o.Beast,
+                sa =>
+                {
+                    sa.Property<long>("Id").HasColumnName("ID");
+                    sa.Property(p => p.Name).HasColumnName("BEAST_NAME");
+                    sa.Property(p => p.Type).HasColumnName("BEAST_TYPE").HasConversion<string>();
+                });
         }
     }
 
-    public class Rider
+    public abstract class Rider
     {
-        public int Id { get; private set; }
-        public EquineBeast? Mount { get; private set; }
+        public long Id { get; private set; }
 
-        private Rider()
+        protected Rider()
+        {
+            // Required by EF Core
+        }
+    }
+
+    public class BeastRider : Rider
+    {
+        public Beast Beast { get; private set; }
+
+        public BeastRider() : base()
         {
             // Required by EF Core
         }
 
-        public Rider(EquineBeast? mount)
+        public BeastRider(Beast beast) : base()
         {
-            Mount = mount;
+            Beast = beast;
+        }
+    }
+
+    public class OtherBeastRider
+    {
+        public long Id { get; private set; }
+
+        public Beast Beast { get; private set; }
+
+        public OtherBeastRider()
+        {
+            // Required by EF Core
+        }
+
+        public OtherBeastRider(Beast beast)
+        {
+            Beast = beast;
+        }
+    }
+
+    public class Beast : ValueObject
+    {
+        public string Name { get; private set; }
+
+        public EquineBeast Type { get; private set; }
+
+        public Beast(string name, EquineBeast type)
+        {
+            Name = name;
+            Type = type;
+        }
+
+        protected override IEnumerable<object> GetEqualityComponents()
+        {
+            yield return Name;
+            yield return Type;
         }
     }
 
