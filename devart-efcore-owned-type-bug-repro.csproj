@@ -23,9 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CSharpFunctionalExtensions" Version="2.1.1" />
-    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.8.838" />
-    <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5038" />
+    <PackageReference Include="CSharpFunctionalExtensions" Version="2.2.2" />
+    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.9.872" />
+    <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5041" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="2.2.6" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.2.0" />
   </ItemGroup>

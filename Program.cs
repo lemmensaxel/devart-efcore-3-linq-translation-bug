@@ -38,14 +38,6 @@ namespace devart_efcore_owned_type_bug_repro
                     using (var context = new EntityContext())
                     {
                         context.Database.EnsureDeleted();
-                        context.Database.ExecuteSqlCommand(@"
-CREATE TABLE RIDER
-(
-    ID          NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
-    BEAST_NAME VARCHAR2 (50 CHAR) NOT NULL,
-    BEAST_TYPE VARCHAR2 (50 CHAR) NOT NULL,
-    DISCRIMINATOR VARCHAR2 (50 CHAR) NOT NULL
-)");
 
                         context.Database.ExecuteSqlCommand(@"
 CREATE TABLE OTHER_RIDER
@@ -54,10 +46,6 @@ CREATE TABLE OTHER_RIDER
     BEAST_NAME VARCHAR2 (50 CHAR) NOT NULL,
     BEAST_TYPE VARCHAR2 (50 CHAR) NOT NULL
 )");
-
-                        var beast = new Beast("Drogo", EquineBeast.Horse);
-                        var rider = new BeastRider( beast);
-                        context.Add(rider);
 
                         var otherBeast = new Beast("Viscerion", EquineBeast.Donkey);
                         var otherRider = new OtherBeastRider(otherBeast);
@@ -71,13 +59,14 @@ CREATE TABLE OTHER_RIDER
 
                 using (var context = new EntityContext())
                 {
-                    // Works as expected, clean SQL
-                    var otherRider = context.Set<OtherBeastRider>()
-                        .FirstOrDefault();
-
-                    // Works, but generates unnecessary left join in SQL
-                    var rider = context.Set<BeastRider>()
-                        .FirstOrDefault();
+                    var otherRider = context
+                        .Set<OtherBeastRider>()
+                        .FirstOrDefault(_ =>
+                            _.Beast.Name == "Viscerion" || // Correctly translated to SQL
+                            _.Beast.Name.StartsWith("Viscerion") || // ERROR ORA-00904: "_.Beast"."BEAST_NAME": invalid identifier
+                            _.Beast.Name.Contains("Viscerion")   || // ERROR ORA-00904: "_.Beast"."BEAST_NAME": invalid identifier
+                            _.Beast.Name.EndsWith("Viscerion")      // ERROR ORA-00904: "_.Beast"."BEAST_NAME": invalid identifier
+                        );
                 }
 
                 Console.WriteLine("Finished.");
@@ -116,21 +105,6 @@ CREATE TABLE OTHER_RIDER
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Rider>().ToTable("RIDER");
-            modelBuilder.Entity<Rider>().HasKey(_ => _.Id);
-            modelBuilder.Entity<Rider>().Property(_ => _.Id).HasColumnName("ID");
-            modelBuilder.Entity<Rider>().HasDiscriminator<string>("DISCRIMINATOR")
-                .HasValue<BeastRider>("BeastRider");
-
-            modelBuilder.Entity<BeastRider>().OwnsOne(
-                o => o.Beast,
-                sa =>
-                {
-                    sa.Property<long>("Id").HasColumnName("ID");
-                    sa.Property(p => p.Name).HasColumnName("BEAST_NAME");
-                    sa.Property(p => p.Type).HasColumnName("BEAST_TYPE").HasConversion<string>();
-                });
-
             modelBuilder.Entity<OtherBeastRider>().ToTable("OTHER_RIDER");
             modelBuilder.Entity<OtherBeastRider>().HasKey(_ => _.Id);
             modelBuilder.Entity<OtherBeastRider>().Property(_ => _.Id).HasColumnName("ID");
@@ -142,31 +116,6 @@ CREATE TABLE OTHER_RIDER
                     sa.Property(p => p.Name).HasColumnName("BEAST_NAME");
                     sa.Property(p => p.Type).HasColumnName("BEAST_TYPE").HasConversion<string>();
                 });
-        }
-    }
-
-    public abstract class Rider
-    {
-        public long Id { get; private set; }
-
-        protected Rider()
-        {
-            // Required by EF Core
-        }
-    }
-
-    public class BeastRider : Rider
-    {
-        public Beast Beast { get; private set; }
-
-        public BeastRider() : base()
-        {
-            // Required by EF Core
-        }
-
-        public BeastRider(Beast beast) : base()
-        {
-            Beast = beast;
         }
     }
 
