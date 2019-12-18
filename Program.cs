@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Transactions;
+using CSharpFunctionalExtensions;
 using Devart.Data.Oracle;
 using HibernatingRhinos.Profiler.Appender.EntityFramework;
 using Microsoft.EntityFrameworkCore;
@@ -41,9 +43,10 @@ namespace devart_efcore_3_discriminator_bug
 CREATE TABLE BEAST_RIDER
 (
     ID          NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
-    NAME        VARCHAR2 (50 CHAR) NOT NULL,
-    DISCRIMINATOR VARCHAR2 (50 CHAR) NOT NULL
+    RIDER_NAME        VARCHAR2 (50 CHAR) NOT NULL,
+    BEAST_NAME        VARCHAR2 (50 CHAR)
 )");
+                        context.Database.ExecuteSqlRaw(@"INSERT INTO BEAST_RIDER (RIDER_NAME) VALUES ('Khal Drogo')");
 
                         await context.SaveChangesAsync();
                     }
@@ -51,18 +54,18 @@ CREATE TABLE BEAST_RIDER
                     scope.Complete();
                 }
 
-                using (var context = new EntityContext())
+                await using (var context = new EntityContext())
                 {
-                    // Both methods of querying derived entities generate
-                    // ... WHERE "b".DISCRIMINATOR = TO_NCLOB('BirdRider')
-                    // resulting in 'ORA-00932: inconsistent datatypes: expected - got NCLOB'
-                    var birdRider = context
-                        .Set<BirdRider>()
-                        .FirstOrDefault();
+                    // This works
+                    var khalDrogo = await context.Set<BeastRider>()
+                        .FirstOrDefaultAsync(_ => _.Beast != null && _.Beast.Name == "Khal drogo");
 
-                    var beastRider = context
-                        .Set<BeastRider>()
-                        .FirstOrDefault(_ => _ is BirdRider);
+                    // This fails with 'System.InvalidOperationException: Null TypeMapping in Sql Tree'
+                    var khals = await context.Set<BeastRider>()
+                        .Where(_ => _.Beast != null && _.Beast.Name.StartsWith("Khal"))
+                        .ToArrayAsync();
+
+                    Console.WriteLine($"Found {khals.Length} khals.");
                 }
 
                 Console.WriteLine("Finished.");
@@ -104,13 +107,12 @@ CREATE TABLE BEAST_RIDER
             modelBuilder.Entity<BeastRider>().ToTable("BEAST_RIDER");
             modelBuilder.Entity<BeastRider>().HasKey(_ => _.Id);
             modelBuilder.Entity<BeastRider>().Property(_ => _.Id).HasColumnName("ID");
-            modelBuilder.Entity<BeastRider>().Property(_ => _.Name).HasColumnName("NAME");
-            
-            modelBuilder.Entity<BeastRider>()
-                .HasDiscriminator<string>("DISCRIMINATOR")
-                .HasValue<BeastRider>(nameof(BeastRider))
-                .HasValue<BirdRider>(nameof(BirdRider));
-            modelBuilder.Entity<BeastRider>().Property("DISCRIMINATOR").HasMaxLength(50);
+            modelBuilder.Entity<BeastRider>().Property(_ => _.RiderName).HasColumnName("RIDER_NAME");
+            modelBuilder.Entity<BeastRider>().OwnsOne(_ => _.Beast,
+                ba =>
+                {
+                    ba.Property(beast => beast.Name).HasColumnName("BEAST_NAME");
+                });
         }
     }
 
@@ -118,24 +120,37 @@ CREATE TABLE BEAST_RIDER
     {
         public long Id { get; private set; }
 
-        public string Name { get; private set; }
+        public string RiderName { get; private set; }
 
+        public Beast? Beast { get; private set; }
+
+        // ReSharper disable once UnusedMember.Global
+#pragma warning disable CS8618 // Non-nullable field is uninitialized. Consider declaring as nullable.
         public BeastRider()
+#pragma warning restore CS8618 // Non-nullable field is uninitialized. Consider declaring as nullable.
         {
             // Required by EF Core
         }
 
-        public BeastRider(string name)
+        public BeastRider(string riderName, Beast beast)
         {
-            Name = name;
+            RiderName = riderName;
+            Beast = beast;
         }
     }
 
-    public class BirdRider : BeastRider
+    public class Beast : ValueObject
     {
-        public BirdRider()
+        public string Name { get; private set; }
+
+        public Beast(string name)
         {
-            
+            Name = name;
+        }
+
+        protected override IEnumerable<object> GetEqualityComponents()
+        {
+            yield return Name;
         }
     }
 }

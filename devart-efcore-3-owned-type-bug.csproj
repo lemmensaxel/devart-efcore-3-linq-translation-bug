@@ -3,9 +3,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <RootNamespace>devart-efcore-3-discriminator-bug</RootNamespace>
-    <LangVersion>7.1</LangVersion>
-    <AssemblyName>devart-efcore-3-discriminator-bug</AssemblyName>
+    <RootNamespace>devart-efcore-3-owned-type-bug</RootNamespace>
+    <LangVersion>8.0</LangVersion>
+    <AssemblyName>devart-efcore-3-owned-type-bug</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,10 +27,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="CSharpFunctionalExtensions" Version="2.2.2" />
     <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.9.887" />
     <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5042" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.0.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.0.1" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
 </Project>
