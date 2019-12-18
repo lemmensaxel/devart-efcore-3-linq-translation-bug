@@ -1,16 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Transactions;
-using CSharpFunctionalExtensions;
 using Devart.Data.Oracle;
 using HibernatingRhinos.Profiler.Appender.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
-namespace devart_efcore_owned_type_bug_repro
+namespace devart_efcore_3_discriminator_bug
 {
     public class Program
     {
@@ -39,17 +37,13 @@ namespace devart_efcore_owned_type_bug_repro
                     {
                         context.Database.EnsureDeleted();
 
-                        context.Database.ExecuteSqlCommand(@"
-CREATE TABLE OTHER_RIDER
+                        context.Database.ExecuteSqlRaw(@"
+CREATE TABLE BEAST_RIDER
 (
     ID          NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
-    BEAST_NAME VARCHAR2 (50 CHAR) NOT NULL,
-    BEAST_TYPE VARCHAR2 (50 CHAR) NOT NULL
+    NAME        VARCHAR2 (50 CHAR) NOT NULL,
+    DISCRIMINATOR VARCHAR2 (50 CHAR) NOT NULL
 )");
-
-                        var otherBeast = new Beast("Viscerion", EquineBeast.Donkey);
-                        var otherRider = new OtherBeastRider(otherBeast);
-                        context.Add(otherRider);
 
                         await context.SaveChangesAsync();
                     }
@@ -59,14 +53,16 @@ CREATE TABLE OTHER_RIDER
 
                 using (var context = new EntityContext())
                 {
-                    var otherRider = context
-                        .Set<OtherBeastRider>()
-                        .FirstOrDefault(_ =>
-                            _.Beast.Name == "Viscerion" || // Correctly translated to SQL
-                            _.Beast.Name.StartsWith("Viscerion") || // ERROR ORA-00904: "_.Beast"."BEAST_NAME": invalid identifier
-                            _.Beast.Name.Contains("Viscerion")   || // ERROR ORA-00904: "_.Beast"."BEAST_NAME": invalid identifier
-                            _.Beast.Name.EndsWith("Viscerion")      // ERROR ORA-00904: "_.Beast"."BEAST_NAME": invalid identifier
-                        );
+                    // Both methods of querying derived entities generate
+                    // ... WHERE "b".DISCRIMINATOR = TO_NCLOB('BirdRider')
+                    // resulting in 'ORA-00932: inconsistent datatypes: expected - got NCLOB'
+                    var birdRider = context
+                        .Set<BirdRider>()
+                        .FirstOrDefault();
+
+                    var beastRider = context
+                        .Set<BeastRider>()
+                        .FirstOrDefault(_ => _ is BirdRider);
                 }
 
                 Console.WriteLine("Finished.");
@@ -105,61 +101,41 @@ CREATE TABLE OTHER_RIDER
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<OtherBeastRider>().ToTable("OTHER_RIDER");
-            modelBuilder.Entity<OtherBeastRider>().HasKey(_ => _.Id);
-            modelBuilder.Entity<OtherBeastRider>().Property(_ => _.Id).HasColumnName("ID");
-            modelBuilder.Entity<OtherBeastRider>().OwnsOne(
-                o => o.Beast,
-                sa =>
-                {
-                    sa.Property<long>("Id").HasColumnName("ID");
-                    sa.Property(p => p.Name).HasColumnName("BEAST_NAME");
-                    sa.Property(p => p.Type).HasColumnName("BEAST_TYPE").HasConversion<string>();
-                });
+            modelBuilder.Entity<BeastRider>().ToTable("BEAST_RIDER");
+            modelBuilder.Entity<BeastRider>().HasKey(_ => _.Id);
+            modelBuilder.Entity<BeastRider>().Property(_ => _.Id).HasColumnName("ID");
+            modelBuilder.Entity<BeastRider>().Property(_ => _.Name).HasColumnName("NAME");
+            
+            modelBuilder.Entity<BeastRider>()
+                .HasDiscriminator<string>("DISCRIMINATOR")
+                .HasValue<BeastRider>(nameof(BeastRider))
+                .HasValue<BirdRider>(nameof(BirdRider));
+            modelBuilder.Entity<BeastRider>().Property("DISCRIMINATOR").HasMaxLength(50);
         }
     }
 
-    public class OtherBeastRider
+    public class BeastRider
     {
         public long Id { get; private set; }
 
-        public Beast Beast { get; private set; }
+        public string Name { get; private set; }
 
-        public OtherBeastRider()
+        public BeastRider()
         {
             // Required by EF Core
         }
 
-        public OtherBeastRider(Beast beast)
-        {
-            Beast = beast;
-        }
-    }
-
-    public class Beast : ValueObject
-    {
-        public string Name { get; private set; }
-
-        public EquineBeast Type { get; private set; }
-
-        public Beast(string name, EquineBeast type)
+        public BeastRider(string name)
         {
             Name = name;
-            Type = type;
-        }
-
-        protected override IEnumerable<object> GetEqualityComponents()
-        {
-            yield return Name;
-            yield return Type;
         }
     }
 
-    public enum EquineBeast
+    public class BirdRider : BeastRider
     {
-        Donkey,
-        Mule,
-        Horse,
-        Unicorn
+        public BirdRider()
+        {
+            
+        }
     }
 }
