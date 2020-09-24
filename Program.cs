@@ -61,14 +61,9 @@ CREATE TABLE OWNER
                 await using (var context = new EntityContext())
                 {
 
-                    var owners = new List<Owner>();
                     // Create 3000 owners
-                    for (var i = 0; i < 3000; i++)
-                    {
-                        var newOwner = new Owner("Owner " + i);
-                        context.Add(newOwner);
-                        owners.Add(newOwner);
-                    }
+                    var owners = Enumerable.Range(1, 3000).Select(_ => new Owner($"Owner {_}")).ToList();
+                    context.AddRange(owners);
                     context.SaveChanges();
 
                     // Create the first car
