@@ -74,26 +74,20 @@ CREATE TABLE OWNER
                     // Create the first car
                     var car1 = new Car("red", owners[0]);
                     context.Add(car1);
-                    context.SaveChanges();
-                    context.Entry(car1).State = EntityState.Detached;
 
                     // Create the second car
                     var car2 = new Car("red", owners[600]);
                     context.Add(car2);
-                    context.SaveChanges();
-                    context.Entry(car1).State = EntityState.Detached;
 
                     // Create the third car
                     var car3 = new Car("blue", owners[1000]);
                     context.Add(car3);
-                    context.SaveChanges();
-                    context.Entry(car1).State = EntityState.Detached;
 
                     // Create the fourth car
                     var car4 = new Car("blue", owners[2000]);
                     context.Add(car4);
+
                     context.SaveChanges();
-                    context.Entry(car1).State = EntityState.Detached;
 
                     // This doesn't work, should return the first and second car
                     var carsOfSpecificOwnerWithRedColor = await context.Set<Car>()
