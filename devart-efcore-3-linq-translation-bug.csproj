@@ -5,11 +5,10 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <RootNamespace>devart-efcore-3-owned-type-bug</RootNamespace>
     <LangVersion>8.0</LangVersion>
-    <AssemblyName>devart-efcore-3-owned-type-bug</AssemblyName>
+    <AssemblyName>devart-efcore-3-linq-translation-bug</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="appsettings.development.json" />
     <None Remove="appsettings.template.json" />
     <None Remove="global.json" />
   </ItemGroup>
@@ -18,20 +17,23 @@
     <Content Include="global.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="appsettings.development.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="appsettings.template.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CSharpFunctionalExtensions" Version="2.2.2" />
-    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.9.887" />
-    <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5042" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.0.1" />
+    <PackageReference Include="CSharpFunctionalExtensions" Version="2.11.7" />
+    <PackageReference Include="Devart.Data.Oracle.EFCore" Version="9.13.1098" />
+    <PackageReference Include="EntityFrameworkProfiler" Version="5.0.5048" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.1.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.1.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.development.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <PropertyGroup>

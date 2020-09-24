@@ -4,13 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Transactions;
-using CSharpFunctionalExtensions;
 using Devart.Data.Oracle;
 using HibernatingRhinos.Profiler.Appender.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
-namespace devart_efcore_3_discriminator_bug
+namespace devart_efcore_3_linq_translation_bug
 {
     public class Program
     {
@@ -40,13 +39,18 @@ namespace devart_efcore_3_discriminator_bug
                         context.Database.EnsureDeleted();
 
                         context.Database.ExecuteSqlRaw(@"
-CREATE TABLE BEAST_RIDER
+CREATE TABLE CAR
 (
     ID          NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
-    RIDER_NAME        VARCHAR2 (50 CHAR) NOT NULL,
-    BEAST_NAME        VARCHAR2 (50 CHAR)
+    COLOR       VARCHAR2 (50 CHAR) NOT NULL,
+    OWNER_ID    NUMBER (19, 0)
 )");
-                        context.Database.ExecuteSqlRaw(@"INSERT INTO BEAST_RIDER (RIDER_NAME) VALUES ('Khal Drogo')");
+                        context.Database.ExecuteSqlRaw(@"
+CREATE TABLE OWNER
+(
+    ID              NUMBER (19, 0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+    NAME            VARCHAR2 (50 CHAR) NOT NULL
+)");
 
                         await context.SaveChangesAsync();
                     }
@@ -56,16 +60,51 @@ CREATE TABLE BEAST_RIDER
 
                 await using (var context = new EntityContext())
                 {
-                    // This works
-                    var khalDrogo = await context.Set<BeastRider>()
-                        .FirstOrDefaultAsync(_ => _.Beast != null && _.Beast.Name == "Khal drogo");
 
-                    // This fails with 'System.InvalidOperationException: Null TypeMapping in Sql Tree'
-                    var khals = await context.Set<BeastRider>()
-                        .Where(_ => _.Beast != null && _.Beast.Name.StartsWith("Khal"))
+                    var owners = new List<Owner>();
+                    // Create 3000 owners
+                    for (var i = 0; i < 3000; i++)
+                    {
+                        var newOwner = new Owner("Owner " + i);
+                        context.Add(newOwner);
+                        owners.Add(newOwner);
+                    }
+                    context.SaveChanges();
+
+                    // Create the first car
+                    var car1 = new Car("red", owners[0]);
+                    context.Add(car1);
+                    context.SaveChanges();
+                    context.Entry(car1).State = EntityState.Detached;
+
+                    // Create the second car
+                    var car2 = new Car("red", owners[600]);
+                    context.Add(car2);
+                    context.SaveChanges();
+                    context.Entry(car1).State = EntityState.Detached;
+
+                    // Create the third car
+                    var car3 = new Car("blue", owners[1000]);
+                    context.Add(car3);
+                    context.SaveChanges();
+                    context.Entry(car1).State = EntityState.Detached;
+
+                    // Create the fourth car
+                    var car4 = new Car("blue", owners[2000]);
+                    context.Add(car4);
+                    context.SaveChanges();
+                    context.Entry(car1).State = EntityState.Detached;
+
+                    // This doesn't work, should return the first and second car
+                    var carsOfSpecificOwnerWithRedColor = await context.Set<Car>()
+                        .Where(_ => owners.Contains(_.Owner))
+                        .Where(_ => _.Color == "red")
                         .ToArrayAsync();
 
-                    Console.WriteLine($"Found {khals.Length} khals.");
+                    foreach (var car in carsOfSpecificOwnerWithRedColor)
+                    {
+                        Console.WriteLine($"Found {car.Id}.");
+                    }
                 }
 
                 Console.WriteLine("Finished.");
@@ -104,53 +143,55 @@ CREATE TABLE BEAST_RIDER
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<BeastRider>().ToTable("BEAST_RIDER");
-            modelBuilder.Entity<BeastRider>().HasKey(_ => _.Id);
-            modelBuilder.Entity<BeastRider>().Property(_ => _.Id).HasColumnName("ID");
-            modelBuilder.Entity<BeastRider>().Property(_ => _.RiderName).HasColumnName("RIDER_NAME");
-            modelBuilder.Entity<BeastRider>().OwnsOne(_ => _.Beast,
-                ba =>
-                {
-                    ba.Property(beast => beast.Name).HasColumnName("BEAST_NAME");
-                });
+            modelBuilder.Entity<Owner>().ToTable("OWNER");
+            modelBuilder.Entity<Owner>().HasKey(_ => _.Id);
+            modelBuilder.Entity<Owner>().Property(_ => _.Id).HasColumnName("ID");
+            modelBuilder.Entity<Owner>().Property(_ => _.Name).HasColumnName("NAME");
+            modelBuilder.Entity<Owner>().HasMany(_ => _.Cars).WithOne(_ => _.Owner);
+
+            modelBuilder.Entity<Car>().ToTable("CAR");
+            modelBuilder.Entity<Car>().Property<long>("OWNER_ID");
+            modelBuilder.Entity<Car>().HasKey(_ => _.Id);
+            modelBuilder.Entity<Car>().Property(_ => _.Id).HasColumnName("ID");
+            modelBuilder.Entity<Car>().Property(_ => _.Color).HasColumnName("COLOR");
+            modelBuilder.Entity<Car>().HasOne(_ => _.Owner).WithMany(_ => _.Cars).HasForeignKey("OWNER_ID");
         }
     }
 
-    public class BeastRider
+    public class Car
     {
         public long Id { get; private set; }
 
-        public string RiderName { get; private set; }
+        public string Color { get; private set; }
 
-        public Beast? Beast { get; private set; }
+        public Owner Owner { get; private set; }
 
         // ReSharper disable once UnusedMember.Global
 #pragma warning disable CS8618 // Non-nullable field is uninitialized. Consider declaring as nullable.
-        public BeastRider()
+        public Car()
 #pragma warning restore CS8618 // Non-nullable field is uninitialized. Consider declaring as nullable.
         {
             // Required by EF Core
         }
 
-        public BeastRider(string riderName, Beast beast)
+        public Car(string color, Owner owner)
         {
-            RiderName = riderName;
-            Beast = beast;
+            Color = color;
+            Owner = owner;
         }
     }
 
-    public class Beast : ValueObject
+    public class Owner
     {
+        public long Id { get; private set; }
+
         public string Name { get; private set; }
 
-        public Beast(string name)
+        public List<Car> Cars { get; private set; }
+
+        public Owner(string name)
         {
             Name = name;
-        }
-
-        protected override IEnumerable<object> GetEqualityComponents()
-        {
-            yield return Name;
         }
     }
 }
